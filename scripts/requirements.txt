@@ -1,0 +1,35 @@
+# AI应用开发 - Python依赖
+# 这个文件包含了AI应用开发需要的Python包
+
+# 核心AI框架
+langchain==0.1.0
+langchain-openai==0.0.5
+langchain-community==0.0.10
+
+# 向量数据库
+chromadb==0.4.22
+faiss-cpu==1.7.4
+
+# 数据处理
+pandas==2.1.4
+numpy==1.24.4
+
+# 网络请求
+requests==2.31.0
+httpx==0.26.0
+
+# 文本处理
+pypdf==4.0.1
+python-docx==1.1.0
+
+# API框架
+fastapi==0.108.0
+uvicorn==0.25.0
+
+# 数据库连接
+mysql-connector-python==8.2.0
+redis==5.0.1
+
+# 实用工具
+python-dotenv==1.0.0
+pydantic==2.5.3
