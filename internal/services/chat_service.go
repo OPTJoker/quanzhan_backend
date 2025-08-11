@@ -10,15 +10,18 @@ import (
 	"ai-development-learning/internal/database"
 	"ai-development-learning/internal/models"
 
+	"ai-development-learning/internal/intent"
+
 	"github.com/google/uuid"
 	"github.com/sashabaranov/go-openai"
 	"gorm.io/gorm"
 )
 
 type ChatService struct {
-	db     *database.Database
-	client *openai.Client
-	config *config.Config
+	db               *database.Database
+	client           *openai.Client
+	config           *config.Config
+	intentRecognizer *intent.IntentRecognizer
 }
 
 func NewChatService(db *database.Database, cfg *config.Config) *ChatService {
@@ -30,9 +33,10 @@ func NewChatService(db *database.Database, cfg *config.Config) *ChatService {
 	}
 
 	return &ChatService{
-		db:     db,
-		client: client,
-		config: cfg,
+		db:               db,
+		client:           client,
+		config:           cfg,
+		intentRecognizer: intent.NewIntentRecognizer(cfg),
 	}
 }
 
@@ -63,6 +67,16 @@ func (s *ChatService) CreateChat(title string) (*models.Chat, error) {
 
 // SendMessage 发送消息并获取AI回复
 func (s *ChatService) SendMessage(sessionID, userMessage string) (*models.Message, error) {
+	fmt.Printf("[ChatService] 收到用户消息: sessionID=%s, message=%s\n", sessionID, userMessage)
+	// ----------- 意图识别环节 -------------
+	intent := "unknown"
+	if s.intentRecognizer != nil {
+		i, err := s.intentRecognizer.RecognizeIntent(userMessage)
+		if err == nil && i != "" {
+			intent = i
+		}
+	}
+	fmt.Printf("[ChatService] 识别到意图: %s\n", intent)
 	// 检查OpenAI API配置
 	if s.config.OpenAIAPIKey == "" || s.config.OpenAIAPIKey == "your_openai_api_key_here" {
 		// 如果没有配置真实的OpenAI API，使用模拟AI
@@ -83,11 +97,13 @@ func (s *ChatService) SendMessage(sessionID, userMessage string) (*models.Messag
 		Content: userMessage,
 	}
 
-	// 构建对话历史
+	// 构建对话历史，加入意图信息
+	systemPrompt := "你是一个有用的AI助手，请用中文回复。当前用户意图为：" + intent
+	fmt.Printf("[ChatService] 构建系统提示: %s\n", systemPrompt)
 	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
-			Content: "你是一个有用的AI助手，请用中文回复。",
+			Content: systemPrompt,
 		},
 	}
 
@@ -120,12 +136,19 @@ func (s *ChatService) SendMessage(sessionID, userMessage string) (*models.Messag
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
+	fmt.Printf("[ChatService] 调用大模型API...\n")
 	resp, err := s.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
 		Model:       "qwen-turbo", //openai.GPT3Dot5Turbo,
 		Messages:    messages,
 		Temperature: 0.7,
 		MaxTokens:   1000,
 	})
+	if err != nil {
+		fmt.Printf("[ChatService] 大模型API调用失败: %v\n", err)
+	}
+	if len(resp.Choices) > 0 {
+		fmt.Printf("[ChatService] 大模型回复: %s\n", resp.Choices[0].Message.Content)
+	}
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get AI response: %w", err)
