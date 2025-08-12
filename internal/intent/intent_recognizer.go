@@ -38,8 +38,16 @@ func (r *IntentRecognizer) RecognizeIntent(userMessage string) (string, error) {
 		Model: "qwen-turbo",
 		Messages: []openai.ChatCompletionMessage{
 			{
-				Role:    openai.ChatMessageRoleSystem,
-				Content: "你是一个意图识别助手，只输出意图类别名称。",
+				Role: openai.ChatMessageRoleSystem,
+				Content: `你是一个意图识别助手。分析用户输入并返回对应的意图类别。
+				可能的意图类别：
+				- 问答：询问问题
+				- 闲聊：日常聊天
+				- 任务：请求执行某个操作
+				- 指令：明确的命令
+				- 其他：无法分类的内容
+				
+				只返回意图类别名称，不要任何解释。`,
 			},
 			{
 				Role:    openai.ChatMessageRoleUser,
